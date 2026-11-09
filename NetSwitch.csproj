@@ -5,9 +5,10 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <InformationalVersion>2026.11.08-001</InformationalVersion>
-    <AssemblyVersion>2026.11.8.1</AssemblyVersion>
-    <FileVersion>2026.11.8.1</FileVersion>
+    <InformationalVersion>2026.11.09-001</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <AssemblyVersion>2026.11.9.1</AssemblyVersion>
+    <FileVersion>2026.11.9.1</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>NetSwitch-icon01.ico</ApplicationIcon>
   </PropertyGroup>

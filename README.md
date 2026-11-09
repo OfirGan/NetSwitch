@@ -2,7 +2,7 @@
 
 A single-screen Windows Forms utility for reading, saving, editing, and applying IPv4 network adapter profiles. It opens the main window on launch by default, or starts with only the tray icon when **Start minimized to tray** is enabled. It uses a custom network-node icon. Profiles and app settings are stored locally in `%LOCALAPPDATA%\NetSwitch\profiles.json` and `%LOCALAPPDATA%\NetSwitch\settings.json`; there is no account or database.
 
-Current release: `2026.11.08-001`.
+Current release: `2026.11.09-001`.
 
 ## Requirements
 
@@ -33,7 +33,7 @@ Use **Start with Windows** in the main window to create an elevated Task Schedul
 
 ## Try it safely
 
-1. Left-click the NetSwitch tray icon to open or hide the main window. Right-click it to open the tray menu.
+1. Launching NetSwitch opens the main window unless **Start minimized to tray** is enabled. Launching it again brings the existing main window forward. Left-click the tray icon to open or hide the window; right-click it for the tray menu.
 2. Click **Tray adapters...** in the main window, or choose **Choose visible adapters...** from the right-click tray menu. Unchecked adapters are hidden from tray profile menus, but remain available in the main editor.
 3. Select an adapter and click **Read current** to inspect its current IPv4 and DNS settings.
 4. For static addressing, enter the primary IPv4 address. Use **Optional IPs...** to add secondary addresses with an IP and subnet mask for each row. They use the primary address's gateway. Enter the connection-specific DNS suffix in the DNS section if needed.
