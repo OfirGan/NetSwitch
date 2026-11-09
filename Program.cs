@@ -1,8 +1,9 @@
 using System.Diagnostics;
 using System.Net;
 using System.Net.NetworkInformation;
-using System.Net.Sockets;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using System.Net.Sockets;
 using System.Text.Json;
 using Microsoft.Win32;
 
@@ -19,15 +20,38 @@ internal static class Program
     {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
-        Application.Run(new TrayApplicationContext());
+
+        // Keep one tray process per user session; later launches activate its existing window.
+        using var instanceMutex = new Mutex(initiallyOwned: true, name: @"Local\NetSwitch.SingleInstance", createdNew: out var isFirstInstance);
+        if (!isFirstInstance)
+        {
+            if (!TrayApplicationContext.SignalExistingInstance())
+            {
+                MessageBox.Show("NetSwitch is already running, but its main window could not be opened.", "NetSwitch", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+            return;
+        }
+
+        try
+        {
+            Application.Run(new TrayApplicationContext());
+        }
+        finally
+        {
+            instanceMutex.ReleaseMutex();
+        }
     }
 }
 
 // Keep the process alive from the notification area and create the main window only when requested.
 internal sealed class TrayApplicationContext : ApplicationContext
 {
+    private const string ActivationWindowTitle = "NetSwitch.SingleInstance.Window";
+    private const string ActivationMessageName = "NetSwitch.ShowMainWindow";
+    private static readonly uint ActivationMessage = RegisterWindowMessage(ActivationMessageName);
     private readonly NotifyIcon _trayIcon;
     private readonly ContextMenuStrip _trayMenu;
+    private readonly ActivationWindow _activationWindow;
     private MainForm? _mainForm;
     private List<NetworkInterface>? _adapterSnapshot;
     private string? _adapterDiscoveryError;
@@ -51,6 +75,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 ToggleMainWindow();
             }
         };
+        _activationWindow = new ActivationWindow(OpenMainWindow);
 
         try
         {
@@ -317,11 +342,29 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _mainForm.Activate();
     }
 
+    internal static bool SignalExistingInstance()
+    {
+        // The tray process may not have a visible form, so signal its hidden activation window.
+        for (var attempt = 0; attempt < 20; attempt++)
+        {
+            var window = FindWindow(null, ActivationWindowTitle);
+            if (window != IntPtr.Zero && PostMessage(window, ActivationMessage, IntPtr.Zero, IntPtr.Zero))
+            {
+                return true;
+            }
+
+            Thread.Sleep(50);
+        }
+
+        return false;
+    }
+
     protected override void ExitThreadCore()
     {
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
         _trayMenu.Dispose();
+        _activationWindow.Dispose();
         var mainForm = _mainForm;
         _mainForm = null;
         if (mainForm is not null)
@@ -330,6 +373,45 @@ internal sealed class TrayApplicationContext : ApplicationContext
             mainForm.Dispose();
         }
         base.ExitThreadCore();
+    }
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern IntPtr FindWindow(string? className, string windowName);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: System.Runtime.InteropServices.MarshalAs(System.Runtime.InteropServices.UnmanagedType.Bool)]
+    private static extern bool PostMessage(IntPtr window, uint message, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    private static extern uint RegisterWindowMessage(string messageName);
+
+    private sealed class ActivationWindow : NativeWindow, IDisposable
+    {
+        private readonly Action _activateMainWindow;
+
+        public ActivationWindow(Action activateMainWindow)
+        {
+            _activateMainWindow = activateMainWindow;
+            CreateHandle(new CreateParams
+            {
+                Caption = ActivationWindowTitle,
+                Style = unchecked((int)0x80000000),
+                ExStyle = 0x00000080
+            });
+        }
+
+        protected override void WndProc(ref Message message)
+        {
+            if ((uint)message.Msg == ActivationMessage)
+            {
+                _activateMainWindow();
+                return;
+            }
+
+            base.WndProc(ref message);
+        }
+
+        public void Dispose() => DestroyHandle();
     }
 }
 
